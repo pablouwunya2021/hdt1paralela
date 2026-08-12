@@ -17,7 +17,7 @@ REPS    = 5
 
 BINARIOS = conteo_secuencial conteo_paralelo
 
-.PHONY: all verificar benchmark clean ayuda
+.PHONY: all verificar benchmark clean ayuda informe
 
 all: $(BINARIOS)
 
@@ -45,3 +45,7 @@ ayuda:
 	@echo ""
 	@echo "Variables: ARCHIVO=$(ARCHIVO)  REPS=$(REPS)"
 	@echo "Ejemplo:   make benchmark ARCHIVO=archivo_grande.txt REPS=10"
+
+informe:
+	cd informe && pdflatex -interaction=nonstopmode informe.tex \
+	           && pdflatex -interaction=nonstopmode informe.tex

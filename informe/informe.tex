@@ -1,0 +1,985 @@
+% =========================================================================
+%  HDT 1 - Computacion Paralela y Distribuida
+%  Informe formal: medicion de rendimiento del conteo de frecuencia
+%  Compilar con:  pdflatex informe.tex  (dos veces, por el indice)
+% =========================================================================
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish,es-nodecimaldot]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=2.6cm,top=2.8cm,bottom=2.8cm]{geometry}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{listings}
+\usepackage{siunitx}
+\usepackage[most]{tcolorbox}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,arrows.meta,positioning,fit,backgrounds,calc}
+\sisetup{group-separator={\,},group-minimum-digits=4,output-decimal-marker={.}}
+\usepackage[hidelinks,colorlinks=true,linkcolor=azulunc,urlcolor=azulunc,
+            citecolor=azulunc]{hyperref}
+
+% ----------------------------------------------------------------- colores
+\definecolor{azulunc}{HTML}{1B3A5C}
+\definecolor{azulcl}{HTML}{2E6DA4}
+\definecolor{grisln}{HTML}{C8D0DA}
+\definecolor{grisbg}{HTML}{F4F6F8}
+\definecolor{verdeok}{HTML}{1E7A46}
+\definecolor{naranja}{HTML}{B45309}
+\definecolor{rojoal}{HTML}{A32020}
+\definecolor{codecom}{HTML}{6A8759}
+\definecolor{codekey}{HTML}{0B5394}
+
+% ----------------------------------------------------------------- titulos
+\titleformat{\section}{\normalfont\Large\bfseries\color{azulunc}}
+            {\thesection.}{0.6em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries\color{azulcl}}
+            {\thesubsection.}{0.6em}{}
+\titleformat{\subsubsection}{\normalfont\normalsize\bfseries\color{azulcl}}
+            {\thesubsubsection.}{0.6em}{}
+\titlespacing*{\section}{0pt}{16pt}{8pt}
+
+% ------------------------------------------------------------ encabezados
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+\fancyhead[L]{\footnotesize\color{azulunc}Computación Paralela y Distribuida}
+\fancyhead[R]{\footnotesize\color{azulunc}Hoja de Trabajo No.~1}
+\fancyfoot[C]{\footnotesize\thepage}
+
+% ---------------------------------------------------------------- listings
+\lstdefinestyle{c}{
+  language=C,
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{codekey}\bfseries,
+  commentstyle=\color{codecom}\itshape,
+  stringstyle=\color{naranja},
+  numbers=left, numberstyle=\tiny\color{gray}, numbersep=8pt,
+  backgroundcolor=\color{grisbg},
+  frame=single, rulecolor=\color{grisln},
+  breaklines=true, showstringspaces=false,
+  xleftmargin=16pt, xrightmargin=4pt,
+  framexleftmargin=12pt,
+  aboveskip=10pt, belowskip=8pt,
+  captionpos=b,
+}
+\lstdefinestyle{sh}{
+  basicstyle=\ttfamily\scriptsize,
+  backgroundcolor=\color{grisbg},
+  frame=single, rulecolor=\color{grisln},
+  breaklines=true, showstringspaces=false,
+  xleftmargin=4pt, xrightmargin=4pt,
+  aboveskip=10pt, belowskip=8pt,
+}
+\lstset{style=c}
+
+% ------------------------------------------------------------------ cajas
+\newtcolorbox{cajadest}[1][azulcl]{
+  enhanced, breakable, sharp corners,
+  colback=grisbg, colframe=#1,
+  boxrule=0pt, leftrule=3pt,
+  left=9pt, right=9pt, top=7pt, bottom=7pt,
+  width=0.96\linewidth, center,
+  before skip=10pt, after skip=10pt,
+}
+\newcommand{\destacado}[2][azulcl]{%
+  \begin{cajadest}[#1]\small #2\end{cajadest}}
+
+\newcolumntype{R}{>{\raggedleft\arraybackslash}p{2.2cm}}
+\captionsetup{font=small,labelfont={bf,color=azulunc}}
+\setlist{itemsep=2pt,parsep=0pt,topsep=4pt}
+
+% =========================================================================
+\begin{document}
+
+% ------------------------------------------------------------------ PORTADA
+\begin{titlepage}
+\centering
+\vspace*{0.3cm}
+
+{\color{azulunc}\rule{\linewidth}{2pt}}\\[6pt]
+{\large\bfseries\color{azulunc} COMPUTACIÓN PARALELA Y DISTRIBUIDA}\\[4pt]
+{\color{azulunc}\rule{\linewidth}{0.8pt}}
+
+\vspace{1.5cm}
+
+{\Huge\bfseries\color{azulunc} Medición de Rendimiento\\[10pt]
+ en el Conteo de Frecuencia\\[10pt] de Palabras}
+
+\vspace{0.7cm}
+
+{\Large\color{azulcl} Comparación entre una implementación secuencial\\[4pt]
+ y una implementación paralela con POSIX threads}
+
+\vspace{0.5cm}
+
+{\large\itshape Análisis de tiempo de ejecución, \emph{speedup} y \emph{efficiency}}
+
+\vspace{1.4cm}
+
+{\color{grisln}\rule{0.55\linewidth}{0.6pt}}
+
+\vspace{0.6cm}
+
+{\large\bfseries Integrantes del grupo}
+
+\vspace{0.5cm}
+
+{\large
+\begin{tabular}{c}
+Pablo Cabrera \\[5pt]
+Eliazar Canastuju \\[5pt]
+Diego Ramírez \\[5pt]
+André Pivaral \\
+\end{tabular}}
+
+\vspace{1.0cm}
+
+{\color{grisln}\rule{0.55\linewidth}{0.6pt}}
+
+\vspace{1.1cm}
+
+{\large\bfseries Hoja de Trabajo No.~1}\\[8pt]
+{\large 11 de agosto de 2026}
+
+\vspace{0.6cm}
+{\color{azulunc}\rule{\linewidth}{2pt}}
+\end{titlepage}
+
+% ------------------------------------------------------------------ INDICE
+\tableofcontents
+\thispagestyle{fancy}
+\newpage
+
+% =========================================================== 1. INTRODUCCION
+\section{Introducción y objetivos}
+
+El presente informe documenta la medición y comparación del rendimiento de dos
+implementaciones del algoritmo de conteo de frecuencia de palabras: una
+\textbf{secuencial} y una \textbf{paralela}. Ambas parten del programa desarrollado
+en la actividad Corto~02 y fueron instrumentadas para medir el tiempo empleado
+específicamente durante la fase de conteo.
+
+Los objetivos concretos del trabajo son:
+
+\begin{enumerate}[label=\textbf{\arabic*.}]
+  \item Instrumentar ambas versiones para medir el tiempo de la fase de conteo,
+        asegurando que la medición cubra exactamente la misma porción del
+        algoritmo en las dos.
+  \item Ejecutar cinco corridas por configuración (secuencial, 2~hilos y
+        4~hilos) sobre el mismo archivo de texto y obtener el tiempo promedio.
+  \item Calcular el \emph{speedup} y la \emph{efficiency} de cada configuración
+        paralela.
+  \item Analizar el comportamiento del rendimiento al variar la cantidad de
+        hilos e identificar las fuentes de \emph{overhead}.
+\end{enumerate}
+
+\destacado[verdeok]{\textbf{Criterio metodológico fundamental.} Un valor de
+\emph{speedup} solo tiene significado si ambas versiones calculan exactamente lo
+mismo y si el cronómetro cubre el mismo trabajo en las dos. Por esta razón, antes
+de reportar cualquier medición se verificó la equivalencia de las salidas
+(sección~\ref{sec:correctitud}) y se delimitó con precisión la región medida
+(sección~\ref{sec:region}).}
+
+% ============================================================== 2. ENTORNO
+\section{Entorno experimental}
+
+Todas las mediciones se realizaron en el mismo equipo y bajo las mismas
+condiciones, sin otras aplicaciones de carga activa.
+
+\begin{table}[H]
+\centering
+\caption{Características del entorno de pruebas}
+\small
+\begin{tabular}{@{}p{5.1cm}p{9.2cm}@{}}
+\toprule
+\textbf{Elemento} & \textbf{Valor} \\
+\midrule
+Procesador & Apple M5 (arquitectura ARM64) \\
+Núcleos & 10 lógicos: \textbf{4 de rendimiento (P) + 6 de eficiencia (E)} \\
+Sistema operativo & macOS 26.5.2 \\
+Compilador & Apple clang 21.0.0 \\
+Banderas de compilación & \texttt{-O2 -Wall} (secuencial)\newline
+                          \texttt{-O2 -Wall -pthread} (paralela) \\
+Modelo de paralelismo & POSIX threads (\texttt{pthreads}), memoria compartida \\
+Reloj utilizado & \texttt{clock\_gettime(CLOCK\_MONOTONIC)}, resolución de
+                  nanosegundos \\
+\midrule
+Archivo principal & \texttt{archivo.txt}: \num{24530} bytes, \num{4589}
+                    palabras, \textbf{904 palabras distintas} \\
+Archivo complementario & \texttt{archivo\_grande.txt}: \num{981240} bytes,
+                         \num{183560} palabras, 904 distintas \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent
+La arquitectura heterogénea del procesador es relevante para la interpretación de
+los resultados: los núcleos P y E \textbf{no tienen el mismo desempeño}, de modo
+que el planificador del sistema operativo puede asignar hilos a núcleos de
+distinta velocidad.
+
+\subsection{Justificación del archivo complementario}
+
+El enunciado exige emplear el mismo archivo de texto en todas las pruebas,
+condición que se cumple dentro de cada experimento. Se incorporó adicionalmente un
+segundo experimento sobre un archivo mayor —construido repitiendo cuarenta veces
+el mismo texto— por dos motivos:
+
+\begin{itemize}
+  \item Con \num{24530} bytes los tiempos son del orden de milisegundos y la
+        variabilidad del sistema operativo llega a duplicar la medición entre
+        corridas.
+  \item Comparar ambos tamaños permite \textbf{aislar el efecto del tamaño del
+        problema} sobre el \emph{overhead}, sin modificar una sola línea de
+        código. Como se verá en la sección~\ref{sec:analisis}, este contraste
+        resultó ser el hallazgo más informativo del trabajo.
+\end{itemize}
+
+% =========================================================== 3. DISENO
+\section{Diseño de las implementaciones}
+
+\subsection{Estructura de datos común}
+
+Las frecuencias se almacenan en un arreglo dinámico de pares
+\emph{(palabra, frecuencia)} que duplica su capacidad al llenarse:
+
+\begin{lstlisting}[caption={Estructura de la tabla de frecuencias}]
+typedef struct {
+    char   *palabra;      /* copia propia de la palabra */
+    size_t  frecuencia;   /* numero de apariciones      */
+} EntradaFrecuencia;
+
+typedef struct {
+    EntradaFrecuencia *entradas;
+    size_t cantidad;      /* entradas utilizadas */
+    size_t capacidad;     /* entradas disponibles */
+} TablaFrecuencias;
+\end{lstlisting}
+
+La inserción recorre linealmente la tabla comparando con \texttt{strcmp}, por lo
+que el algoritmo es de complejidad \textbf{$O(n^2)$}: con 904 palabras distintas,
+cada inserción puede costar hasta 904 comparaciones. Esta característica,
+heredada del programa original, resulta determinante para el experimento, ya que
+genera suficiente carga de cómputo como para que la paralelización tenga un
+efecto medible.
+
+\subsection{Versión secuencial}
+
+Un único flujo de ejecución recorre el texto carácter por carácter, delimita cada
+palabra y la acumula en la tabla:
+
+\begin{lstlisting}[caption={Núcleo del conteo, idéntico en ambas versiones}]
+for (i = inicio; i < fin; i++) {
+    unsigned char actual = (unsigned char)texto[i];
+
+    if (es_caracter_de_palabra(actual)) {
+        palabra[longitud++] = tolower(actual);    /* continua la palabra */
+    } else if (longitud > 0) {
+        palabra[longitud] = '\0';                 /* termino: registrarla */
+        agregar_palabra(tabla, palabra, 1);
+        longitud = 0;
+    }
+}
+if (longitud > 0) {          /* si el texto no termina en separador */
+    palabra[longitud] = '\0';
+    agregar_palabra(tabla, palabra, 1);
+}
+\end{lstlisting}
+
+\subsubsection{Modificaciones respecto al Corto 02}
+
+La lógica de conteo se conservó sin cambios. Se realizaron tres modificaciones,
+todas ellas necesarias para poder medir el tiempo de forma comparable:
+
+\begin{enumerate}[label=\textbf{(\alph*)}]
+  \item \textbf{Separación de la E/S respecto del cómputo.} La versión original
+        leía con \texttt{fgetc()} carácter por carácter \emph{mientras} contaba.
+        Ahora el archivo se carga íntegramente en memoria \emph{antes} de iniciar
+        el cronómetro. De no hacerlo, la medición incluiría el acceso a disco en
+        lugar de reflejar únicamente el cómputo.
+  \item \textbf{Aislamiento del conteo en una función parametrizada.}
+        \texttt{contar\_palabras(texto, inicio, fin, tabla)} opera sobre un rango.
+        La versión secuencial la invoca una vez sobre el texto completo; en la
+        paralela, cada hilo la invoca sobre su bloque. Se trata literalmente de
+        \textbf{la misma función en ambas versiones}, lo que garantiza que las
+        diferencias de tiempo provengan del paralelismo y no de un cambio de
+        algoritmo.
+  \item \textbf{Parámetro \texttt{veces} en \texttt{agregar\_palabra}.} La versión
+        secuencial siempre pasa el valor 1. El parámetro habilita la fusión de
+        conteos parciales en la versión paralela, donde es necesario acumular de
+        una sola vez varias apariciones.
+\end{enumerate}
+
+\subsection{Versión paralela}
+
+\subsubsection{Estrategia de descomposición}
+
+La descomposición es \textbf{por datos}: el texto se divide en $N$ bloques
+contiguos y cada hilo procesa uno. La figura~\ref{fig:flujo} presenta el flujo
+completo, incluyendo la delimitación de la región medida.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=6mm,
+  caja/.style={draw,rounded corners=2pt,minimum height=8mm,align=center,
+               font=\footnotesize,inner sep=4pt},
+  gris/.style={caja,draw=gray!70,fill=gray!8,text width=68mm},
+  azul/.style={caja,draw=azulcl,fill=azulcl!8,text width=68mm},
+  verde/.style={caja,draw=verdeok,fill=verdeok!8,text width=25mm,
+                minimum height=14mm},
+  naranja/.style={caja,draw=naranja,fill=naranja!8,text width=68mm},
+  fl/.style={-{Latex[length=2mm]},gray!80,thick},
+  ln/.style={gray!80,thick}
+]
+
+\node[gris] (leer) {1.\ \ Leer el archivo completo a memoria};
+\node[right=3mm of leer,font=\tiny\itshape,gray] {fuera de la medición};
+
+\coordinate (c1) at ($(leer.south)+(0,-4mm)$);
+\draw[fl] (leer.south) -- (c1);
+\draw[verdeok,thick,dashed] ($(c1)+(-78mm,-1.5mm)$) -- ($(c1)+(78mm,-1.5mm)$)
+      node[midway,fill=white,inner sep=2pt,font=\tiny\bfseries,text=verdeok]
+      {INICIA EL CRONÓMETRO};
+
+\node[azul,below=9mm of leer] (dividir)
+     {2.\ \ Dividir el texto en $N$ bloques\\[1pt]
+      \tiny (cada corte se desplaza hasta un separador)};
+
+\coordinate (bus) at ($(dividir.south)+(0,-7mm)$);
+\draw[ln] (dividir.south) -- (bus);
+
+\node[verde,below=20mm of dividir.south,xshift=-49mm] (h0)
+     {\textbf{Hilo 0}\\[2pt]bloque 0\\tabla privada};
+\node[verde,right=6mm of h0] (h1) {\textbf{Hilo 1}\\[2pt]bloque 1\\tabla privada};
+\node[verde,right=6mm of h1] (h2) {\textbf{Hilo 2}\\[2pt]bloque 2\\tabla privada};
+\node[verde,right=6mm of h2] (h3) {\textbf{Hilo $N{-}1$}\\[2pt]bloque $N{-}1$\\tabla privada};
+
+\draw[ln] (h0.north|-bus) -- (h3.north|-bus);
+\foreach \n in {h0,h1,h2,h3} { \draw[fl] (\n.north|-bus) -- (\n.north); }
+
+\node[above=1mm of h1.north east,xshift=3mm,font=\scriptsize\bfseries,
+      text=azulcl,yshift=4mm,fill=white,inner sep=3pt]
+     {3.\ \ Cada hilo cuenta su bloque en su \emph{propia} tabla};
+
+\coordinate (bus2) at ($(h0.south)+(0,-6mm)$);
+\foreach \n in {h0,h1,h2,h3} { \draw[ln] (\n.south) -- (\n.south|-bus2); }
+\draw[ln] (h0.south|-bus2) -- (h3.south|-bus2);
+
+\node[naranja,below=14mm of h1.south east,xshift=3mm] (join)
+     {4.\ \ \texttt{pthread\_join}: esperar a \textbf{todos} los hilos};
+\draw[fl] ($(join.north)+(0,6mm)$) -- (join.north);
+
+\node[naranja,below=6mm of join] (fusion)
+     {5.\ \ Fusionar las $N$ tablas privadas en una sola\\[1pt]
+      \tiny (porción secuencial: el techo de Amdahl)};
+\draw[fl] (join.south) -- (fusion.north);
+
+\coordinate (c2) at ($(fusion.south)+(0,-4mm)$);
+\draw[rojoal,thick,dashed] ($(c2)+(-78mm,0)$) -- ($(c2)+(78mm,0)$)
+      node[midway,fill=white,inner sep=2pt,font=\tiny\bfseries,text=rojoal]
+      {TERMINA EL CRONÓMETRO};
+
+\node[gris,below=9mm of fusion] (salida)
+     {6.\ \ Ordenar alfabéticamente e imprimir};
+\node[right=3mm of salida,font=\tiny\itshape,gray] {fuera de la medición};
+
+\end{tikzpicture}
+\caption{Flujo de la versión paralela. Únicamente la región comprendida entre
+         las líneas punteadas forma parte de la medición.}
+\label{fig:flujo}
+\end{figure}
+
+\subsubsection{División del texto sin fragmentar palabras}
+
+Si los cortes se calcularan por simple división aritmética, uno de ellos podría
+caer en medio de una palabra, que quedaría partida entre dos hilos y produciría
+dos tokens inexistentes. Para evitarlo, cada corte se desplaza hacia adelante
+hasta encontrar un separador:
+
+\begin{lstlisting}[caption={Ajuste de los cortes a frontera de palabra}]
+corte = tamano * (i + 1) / num_hilos;
+
+/* Avanzar hasta el siguiente separador para no partir palabras. */
+while (corte < tamano && es_caracter_de_palabra((unsigned char)texto[corte])) {
+    corte++;
+}
+\end{lstlisting}
+
+Como consecuencia, los bloques no resultan exactamente del mismo tamaño. Este
+desbalance residual constituye una de las fuentes de \emph{overhead} identificadas
+en la sección~\ref{sec:overhead}.
+
+\subsubsection{Tablas privadas por hilo}
+
+Cada hilo acumula sus resultados en una tabla a la que ningún otro hilo accede:
+
+\begin{lstlisting}[caption={Descriptor de tarea asignado a cada hilo}]
+typedef struct {
+    const char *texto;
+    size_t inicio, fin;       /* su bloque: [inicio, fin) */
+    TablaFrecuencias tabla;   /* tabla privada del hilo   */
+    int ok;
+} TareaHilo;
+\end{lstlisting}
+
+Esta es la decisión de diseño más determinante del programa. La alternativa
+—una única tabla compartida protegida por un \emph{mutex}— habría sido
+contraproducente: dado que prácticamente toda la ejecución consiste en insertar
+palabras en la tabla, los hilos permanecerían la mayor parte del tiempo
+esperando el candado. El programa quedaría serializado en la práctica y, sumando
+el costo de adquirir y liberar el \emph{mutex} millones de veces, resultaría
+previsiblemente \textbf{más lento que la versión secuencial}.
+
+\destacado[verdeok]{Al asignar datos privados a cada hilo, \textbf{la fase paralela
+no contiene ni un solo \emph{lock}}. Todo el costo de coordinación se concentra en
+un único punto: la reducción final. Esto convierte al programa en un caso
+particularmente claro para observar la ley de Amdahl.}
+
+\subsubsection{Sincronización y reducción}
+
+\begin{lstlisting}[caption={Sincronización mediante \texttt{join} y reducción de las tablas}]
+for (i = 0; i < num_hilos; i++) {
+    pthread_join(hilos[i], NULL);      /* esperar a que todos terminen */
+}
+
+/* Reduccion: volcar las tablas 1..N-1 sobre la del hilo 0. */
+for (i = 1; i < num_hilos; i++) {
+    for (j = 0; j < tareas[i].tabla.cantidad; j++) {
+        agregar_palabra(&tareas[0].tabla,
+                        tareas[i].tabla.entradas[j].palabra,
+                        tareas[i].tabla.entradas[j].frecuencia);
+    }
+}
+\end{lstlisting}
+
+La reducción la ejecuta \textbf{un solo hilo} mientras los restantes ya han
+finalizado y permanecen ociosos. Constituye la porción estrictamente secuencial
+del algoritmo y, adicionalmente, \textbf{su costo crece con $N$}: con 2 hilos debe
+fusionarse una tabla; con 4 hilos, tres.
+
+% ====================================================== 4. METODOLOGIA
+\section{Metodología de medición}
+
+\subsection{Delimitación de la región medida}
+\label{sec:region}
+
+Se empleó \texttt{clock\_gettime} con el reloj \texttt{CLOCK\_MONOTONIC}, que
+ofrece resolución de nanosegundos y, a diferencia del reloj de pared, no
+retrocede ante ajustes de hora del sistema.
+
+\begin{table}[H]
+\centering
+\caption{Delimitación de la región medida en ambas versiones}
+\small
+\begin{tabular}{@{}p{3.2cm}p{5.3cm}p{5.8cm}@{}}
+\toprule
+ & \textbf{Versión secuencial} & \textbf{Versión paralela} \\
+\midrule
+\textbf{Fuera} (antes) & Lectura del archivo a memoria &
+  Lectura del archivo a memoria \\
+\addlinespace
+\textbf{Dentro} & Recorrido del texto y llenado de la tabla &
+  División del texto \newline
+  Creación de los hilos \newline
+  Conteo parcial concurrente \newline
+  \texttt{pthread\_join} \newline
+  \textbf{Reducción de las tablas} \\
+\addlinespace
+\textbf{Fuera} (después) & Ordenamiento e impresión &
+  Ordenamiento e impresión \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\destacado{\textbf{La totalidad del \emph{overhead} del paralelismo se encuentra
+dentro de la medición}: el reparto del texto, la creación de los hilos, la espera
+en la barrera y la reducción final. No se midió únicamente la fase favorable.}
+
+\subsection{Verificación de correctitud}
+\label{sec:correctitud}
+
+Se comprobó que la versión paralela produce exactamente la misma tabla de
+frecuencias que la secuencial. La verificación está automatizada en el script
+\texttt{verificar.sh}, que devuelve código de salida 0 o 1.
+
+\paragraph{Prueba 1: variación en la cantidad de hilos.}
+Se comparó la salida completa (904 palabras con sus frecuencias) contra la
+referencia secuencial empleando \textbf{1, 2, 3, 4, 5, 7, 8, 16 y 32 hilos}. Se
+incluyeron deliberadamente números impares y no divisores del tamaño del archivo,
+con el fin de forzar cortes en posiciones irregulares. El resultado fue
+\textbf{idéntico en las nueve configuraciones}.
+
+\paragraph{Prueba 2: casos borde.}
+Cada caso se contrastó con 1, 2, 4 y 8 hilos.
+
+\begin{table}[H]
+\centering
+\caption{Casos borde verificados}
+\small
+\begin{tabular}{@{}p{4.4cm}R p{5.6cm}c@{}}
+\toprule
+\textbf{Caso} & \textbf{Bytes} & \textbf{Aspecto que ejercita} &
+\textbf{Resultado} \\
+\midrule
+Archivo vacío & 0 & Todos los bloques vacíos & Idéntico \\
+Una sola palabra & 4 & Menos palabras que hilos & Idéntico \\
+Solo espacios y tabuladores & 7 & Ausencia total de palabras & Idéntico \\
+Dos palabras de un carácter & 3 & Más hilos que bytes & Idéntico \\
+Palabras repetidas & 16 & Acumulación entre bloques & Idéntico \\
+Mayúsculas y minúsculas & 21 & Normalización a minúscula & Idéntico \\
+Sin salto de línea final & 15 & Palabra al borde del bloque & Idéntico \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Los casos de 3 y 4 bytes son los más exigentes: con 8 hilos varios reciben
+bloques vacíos y el ajuste de frontera puede producir bloques de longitud cero.
+El programa los procesa sin fallar y sin perder ni duplicar palabras.
+
+\subsection{Justificación de las cinco ejecuciones}
+
+Los tiempos presentan una dispersión considerable entre corridas. Las cinco
+mediciones secuenciales sobre el archivo de 24~KB oscilaron entre
+\num{0.002447}~s y \num{0.004826}~s, es decir, \textbf{casi el doble de diferencia
+con el mismo código y el mismo archivo}. Las causas son ajenas al programa: otros
+procesos compitiendo por el CPU, decisiones del planificador, variación dinámica
+de la frecuencia del procesador y efectos de calentamiento de caché. Promediar
+cinco corridas mitiga esta variabilidad.
+
+% ====================================================== 5. RESULTADOS
+\section{Resultados experimentales}
+
+\subsection{Tiempos de ejecución}
+
+\begin{table}[H]
+\centering
+\caption{Tiempos de ejecución sobre \texttt{archivo.txt} (\num{24530} bytes)}
+\small
+\begin{tabular}{@{}cRRR@{}}
+\toprule
+\textbf{Núm.} & \textbf{T. secuencial (s)} & \textbf{T. paralela\newline 2 hilos (s)}
+& \textbf{T. paralela\newline 4 hilos (s)} \\
+\midrule
+1 & 0.004635 & 0.003043 & 0.002097 \\
+2 & 0.004826 & 0.002977 & 0.001848 \\
+3 & 0.003230 & 0.002034 & 0.001863 \\
+4 & 0.002752 & 0.001510 & 0.001490 \\
+5 & 0.002447 & 0.001376 & 0.001426 \\
+\midrule
+\textbf{Promedio} & \textbf{0.003578} & \textbf{0.002188} & \textbf{0.001745} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Tiempos de ejecución sobre \texttt{archivo\_grande.txt} (\num{981240} bytes)}
+\small
+\begin{tabular}{@{}cRRR@{}}
+\toprule
+\textbf{Núm.} & \textbf{T. secuencial (s)} & \textbf{T. paralela\newline 2 hilos (s)}
+& \textbf{T. paralela\newline 4 hilos (s)} \\
+\midrule
+1 & 0.078007 & 0.046513 & 0.024097 \\
+2 & 0.069338 & 0.047642 & 0.026287 \\
+3 & 0.077322 & 0.041301 & 0.022825 \\
+4 & 0.065508 & 0.038404 & 0.023097 \\
+5 & 0.067785 & 0.037561 & 0.027518 \\
+\midrule
+\textbf{Promedio} & \textbf{0.071592} & \textbf{0.042284} & \textbf{0.024765} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Cálculo del \emph{speedup}}
+
+El \emph{speedup} se define como el cociente entre el tiempo de la versión
+secuencial y el de la versión paralela:
+
+\begin{equation}
+S_p = \frac{T_{\text{secuencial}}}{T_{\text{paralelo}}}
+\end{equation}
+
+\begin{table}[H]
+\centering
+\caption{\emph{Speedup} por corrida y a partir de los tiempos promedio}
+\small
+\begin{tabular}{@{}cRR@{\hspace{1.4cm}}cRR@{}}
+\toprule
+\multicolumn{3}{c}{\textbf{\texttt{archivo.txt} (24 KB)}} &
+\multicolumn{3}{c}{\textbf{\texttt{archivo\_grande.txt} (958 KB)}} \\
+\cmidrule(r){1-3}\cmidrule(l){4-6}
+\textbf{Núm.} & \textbf{2 hilos} & \textbf{4 hilos} &
+\textbf{Núm.} & \textbf{2 hilos} & \textbf{4 hilos} \\
+\midrule
+1 & 1.5232 & 2.2103 & 1 & 1.6771 & 3.2372 \\
+2 & 1.6211 & 2.6115 & 2 & 1.4554 & 2.6377 \\
+3 & 1.5880 & 1.7338 & 3 & 1.8722 & 3.3876 \\
+4 & 1.8225 & 1.8470 & 4 & 1.7058 & 2.8362 \\
+5 & 1.7783 & 1.7160 & 5 & 1.8047 & 2.4633 \\
+\midrule
+\textbf{Prom.} & \textbf{1.6353} & \textbf{2.0504} &
+\textbf{Prom.} & \textbf{1.6931} & \textbf{2.8909} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent Cálculo a partir de los tiempos promedio del archivo principal:
+
+\begin{align}
+S_2 &= \frac{0.003578}{0.002188} = \mathbf{1.6353} \\[2pt]
+S_4 &= \frac{0.003578}{0.001745} = \mathbf{2.0504}
+\end{align}
+
+\subsection{Cálculo de la \emph{efficiency}}
+
+La \emph{efficiency} expresa el aprovechamiento promedio de cada hilo:
+
+\begin{equation}
+E_p = \frac{S_p}{p}
+\end{equation}
+
+\begin{table}[H]
+\centering
+\caption{\emph{Efficiency} por corrida y a partir de los tiempos promedio}
+\small
+\begin{tabular}{@{}cRR@{\hspace{1.4cm}}cRR@{}}
+\toprule
+\multicolumn{3}{c}{\textbf{\texttt{archivo.txt} (24 KB)}} &
+\multicolumn{3}{c}{\textbf{\texttt{archivo\_grande.txt} (958 KB)}} \\
+\cmidrule(r){1-3}\cmidrule(l){4-6}
+\textbf{Núm.} & \textbf{2 hilos} & \textbf{4 hilos} &
+\textbf{Núm.} & \textbf{2 hilos} & \textbf{4 hilos} \\
+\midrule
+1 & 0.7616 & 0.5526 & 1 & 0.8386 & 0.8093 \\
+2 & 0.8105 & 0.6529 & 2 & 0.7277 & 0.6594 \\
+3 & 0.7940 & 0.4334 & 3 & 0.9361 & 0.8469 \\
+4 & 0.9113 & 0.4617 & 4 & 0.8529 & 0.7091 \\
+5 & 0.8892 & 0.4290 & 5 & 0.9023 & 0.6158 \\
+\midrule
+\textbf{Prom.} & \textbf{0.8176} & \textbf{0.5126} &
+\textbf{Prom.} & \textbf{0.8466} & \textbf{0.7227} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent Cálculo a partir de los tiempos promedio del archivo principal:
+
+\begin{align}
+E_2 &= \frac{1.6353}{2} = \mathbf{0.8176} \quad \text{(81.76\,\%)} \\[2pt]
+E_4 &= \frac{2.0504}{4} = \mathbf{0.5126} \quad \text{(51.26\,\%)}
+\end{align}
+
+\subsection{Tabla final de resultados}
+
+\begin{table}[H]
+\centering
+\caption{Resumen consolidado de resultados}
+\small
+\begin{tabular}{@{}llRRR@{}}
+\toprule
+\textbf{Archivo} & \textbf{Configuración} & \textbf{T. promedio (s)} &
+\textbf{Speedup} & \textbf{Efficiency} \\
+\midrule
+\multirow{3}{*}{\shortstack[l]{\texttt{archivo.txt}\\ (24 KB)}}
+  & Secuencial & 0.003578 & 1.0000 & 100.00\,\% \\
+  & 2 hilos    & 0.002188 & 1.6353 & \textbf{81.76\,\%} \\
+  & 4 hilos    & 0.001745 & \textbf{2.0504} & 51.26\,\% \\
+\midrule
+\multirow{3}{*}{\shortstack[l]{\texttt{archivo\_grande.txt}\\ (958 KB)}}
+  & Secuencial & 0.071592 & 1.0000 & 100.00\,\% \\
+  & 2 hilos    & 0.042284 & 1.6931 & \textbf{84.66\,\%} \\
+  & 4 hilos    & 0.024765 & \textbf{2.8909} & 72.27\,\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=1.02cm,y=0.62cm]
+  % ejes
+  \draw[gray!50] (0,0) -- (0,7.4);
+  \foreach \x in {0,1,2,3,4} {
+    \draw[gray!25,dashed] (\x,0) -- (\x,7.2);
+    \node[font=\scriptsize,gray,below] at (\x,0) {\x};
+  }
+  \draw[gray!50] (0,0) -- (4.4,0);
+
+  % barras: (fila, valor, color, etiqueta)
+  \foreach \i/\v/\c/\lbl in {
+    6/2.00/gray!45/{Ideal, 2 hilos},
+    5/1.6353/azulcl/{24 KB, 2 hilos},
+    4/1.6931/verdeok/{958 KB, 2 hilos},
+    2.6/4.00/gray!45/{Ideal, 4 hilos},
+    1.6/2.0504/azulcl/{24 KB, 4 hilos},
+    0.6/2.8909/verdeok/{958 KB, 4 hilos}}
+  {
+    \fill[\c] (0,\i-0.28) rectangle (\v,\i+0.28);
+    \node[font=\scriptsize,right] at (\v+0.08,\i) {\lbl~(\v$\times$)};
+  }
+  \node[font=\scriptsize\bfseries,gray,below] at (2.2,-0.55)
+       {\emph{Speedup} obtenido frente al ideal};
+\end{tikzpicture}
+\caption{Comparación del \emph{speedup} obtenido contra el \emph{speedup} lineal
+         ideal. La brecha se ensancha al pasar de 2 a 4 hilos, y es
+         considerablemente menor con el archivo de mayor tamaño.}
+\label{fig:speedup}
+\end{figure}
+
+% ====================================================== 6. ANALISIS
+\section{Análisis de resultados}
+\label{sec:analisis}
+
+\subsection{¿Con qué cantidad de hilos se obtuvo el mayor \emph{speedup}?}
+
+Con \textbf{4 hilos} en ambos archivos. En \texttt{archivo.txt} el \emph{speedup}
+pasó de 1.6353 (2 hilos) a 2.0504 (4 hilos), y en \texttt{archivo\_grande.txt} de
+1.6931 a 2.8909. El mejor resultado absoluto fue \textbf{$2.8909\times$ con 4
+hilos sobre el archivo de mayor tamaño}.
+
+No obstante, el incremento de 2 a 4 hilos rindió considerablemente menos de lo
+esperado: duplicar la cantidad de hilos debería duplicar el \emph{speedup}, pero
+en el archivo pequeño únicamente lo aumentó un 25\,\% ($1.64 \rightarrow 2.05$) y
+en el grande un 71\,\% ($1.69 \rightarrow 2.89$).
+
+\subsection{¿Con qué configuración se obtuvo la mayor \emph{efficiency}?}
+
+Con \textbf{2 hilos}: 81.76\,\% en el archivo pequeño y 84.66\,\% en el grande. En
+ambas pruebas la eficiencia con 2 hilos superó a la de 4 hilos. El valor más bajo
+correspondió a \textbf{4 hilos sobre el archivo pequeño (51.26\,\%)}, donde
+prácticamente la mitad de la capacidad de cómputo asignada se consumió en
+\emph{overhead}.
+
+\destacado[naranja]{Se observa aquí una tensión característica del cómputo
+paralelo: \textbf{la configuración más rápida (4 hilos) no es la más eficiente
+(2 hilos)}. Con 2 hilos se aprovecha mejor cada núcleo asignado; con 4 hilos se
+termina antes, pero a costa de recursos ociosos.}
+
+\subsection{¿El \emph{speedup} aumentó proporcionalmente?}
+
+\textbf{No.} El crecimiento fue claramente \textbf{sublineal} y se alejó del ideal
+conforme se agregaron hilos.
+
+\begin{table}[H]
+\centering
+\caption{Comparación con el \emph{speedup} lineal ideal}
+\small
+\begin{tabular}{@{}cRRR@{}}
+\toprule
+\textbf{Hilos} & \textbf{Speedup ideal} & \textbf{Obtenido (24 KB)} &
+\textbf{Obtenido (958 KB)} \\
+\midrule
+2 & 2.00 & 1.64 \ (82\,\% del ideal) & 1.69 \ (85\,\% del ideal) \\
+4 & 4.00 & 2.05 \ (51\,\% del ideal) & 2.89 \ (72\,\% del ideal) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Con 2 hilos se alcanzó entre el 82\,\% y el 85\,\% del ideal, mientras que con 4
+hilos únicamente entre el 51\,\% y el 72\,\%. La brecha respecto al
+\emph{speedup} lineal \textbf{se ensancha} conforme aumenta el número de hilos,
+comportamiento que corresponde exactamente a lo que predice la \textbf{ley de
+Amdahl}: la porción secuencial del programa —en este caso la fusión de las tablas
+privadas— impone un techo al \emph{speedup} alcanzable con independencia de
+cuántos hilos se agreguen.
+
+\subsection{¿La \emph{efficiency} aumentó o disminuyó?}
+
+\textbf{Disminuyó de forma consistente} en ambas pruebas:
+
+\begin{itemize}
+  \item \texttt{archivo.txt}: 81.76\,\% $\rightarrow$ 51.26\,\%
+        (\textbf{caída de 30.5 puntos}).
+  \item \texttt{archivo\_grande.txt}: 84.66\,\% $\rightarrow$ 72.27\,\%
+        (\textbf{caída de 12.4 puntos}).
+\end{itemize}
+
+La razón es que el \emph{overhead} —creación de hilos, reparto del texto y
+reducción final— \textbf{crece con el número de hilos}, mientras que el trabajo
+útil asignado a cada hilo \textbf{se reduce}. La relación entre trabajo útil y
+\emph{overhead} empeora en cada incremento.
+
+Resulta particularmente revelador comparar ambas caídas: con el archivo grande la
+pérdida de eficiencia fue \textbf{menos de la mitad} que con el pequeño, dado que
+existe considerablemente más trabajo real entre el cual distribuir el mismo costo
+fijo de coordinación.
+
+\subsection{Factores que pudieron afectar el tiempo de ejecución}
+
+\begin{enumerate}[label=\textbf{\arabic*.}]
+  \item \textbf{Tamaño del archivo} (factor determinante). Fue el efecto más
+        marcado del experimento. Con 24~KB el trabajo asignado a cada hilo es tan
+        reducido que el costo de crear hilos y fusionar tablas pesa casi tanto
+        como el conteo mismo ($E_4 = 51\,\text{\%}$). Al pasar a 958~KB —cuarenta veces
+        más texto— la eficiencia con 4 hilos ascendió al 72\,\% \textbf{sin
+        modificar una sola línea de código}.
+  \item \textbf{Arquitectura heterogénea del procesador.} El Apple~M5 dispone de
+        4 núcleos de rendimiento y 6 de eficiencia, que no ofrecen el mismo
+        desempeño. Si el planificador ubica algún hilo en un núcleo E, dicho hilo
+        tarda más y los restantes deben \textbf{esperarlo en el
+        \texttt{pthread\_join}}. El tiempo total lo determina el hilo más lento,
+        no el promedio.
+  \item \textbf{Variabilidad del sistema operativo.} Los tiempos de una misma
+        configuración varían de forma apreciable, con diferencias de hasta el
+        doble entre la corrida más lenta y la más rápida, atribuibles a otros
+        procesos, al planificador y a los cambios dinámicos de frecuencia.
+  \item \textbf{Efectos de caché y calentamiento.} Las primeras corridas
+        resultaron sistemáticamente más lentas (\num{0.004635}~s la primera
+        frente a \num{0.002447}~s la quinta).
+  \item \textbf{Desbalance de carga.} Los bloques se reparten por bytes y no por
+        palabras, de modo que los hilos no reciben exactamente la misma cantidad
+        de trabajo.
+  \item \textbf{Complejidad $O(n^2)$ del algoritmo de tabla.} Cada inserción
+        realiza búsqueda lineal. Este costo cuadrático es, paradójicamente, lo
+        que hace que la paralelización resulte provechosa: proporciona suficiente
+        cómputo que distribuir.
+\end{enumerate}
+
+\subsection{Fuentes de \emph{overhead} identificadas}
+\label{sec:overhead}
+
+\begin{table}[H]
+\centering
+\caption{Fuentes de \emph{overhead}, ordenadas por impacto}
+\small
+\begin{tabular}{@{}p{4.3cm}p{10.2cm}@{}}
+\toprule
+\textbf{Fuente} & \textbf{Naturaleza del costo} \\
+\midrule
+\textbf{Reducción de las tablas} \newline \emph{(la principal)} &
+  Es 100\,\% secuencial y crece con $N$: con 4 hilos deben fusionarse 3 tablas de
+  hasta 904 palabras, y cada inserción realiza búsqueda lineal $O(904)$.
+  Constituye el techo de Amdahl del programa. \\
+\addlinespace
+\textbf{Creación y destrucción de hilos} &
+  Cada \texttt{pthread\_create} cuesta decenas de microsegundos. Sobre un trabajo
+  total de 3.5~ms, cuatro hilos representan un costo fijo no despreciable. \\
+\addlinespace
+\textbf{Barrera implícita del \texttt{join}} &
+  El tiempo lo determina el hilo más lento; los restantes quedan ociosos. Se
+  agrava con el desbalance de carga y con los núcleos heterogéneos. \\
+\addlinespace
+\textbf{Trabajo duplicado en memoria} &
+  Con 4 hilos coexisten 4 tablas de hasta 904 entradas: cuádruple uso de memoria
+  y cuádruples llamadas a \texttt{malloc}/\texttt{realloc}. \\
+\addlinespace
+\textbf{Contención en el asignador} &
+  El asignador del sistema emplea \emph{locks} internos; varios hilos solicitando
+  memoria simultáneamente se serializan de forma parcial. \\
+\addlinespace
+\textbf{Cálculo de los cortes} &
+  Costo menor, pero corresponde a trabajo que la versión secuencial no realiza. \\
+\addlinespace
+\textbf{\emph{False sharing}} &
+  Estructuras \texttt{TareaHilo} contiguas pueden compartir línea de caché,
+  provocando invalidaciones cruzadas. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Conviene destacar que la fuente de \emph{overhead} que se \textbf{evitó} explica
+también los buenos resultados con 2 hilos: al asignar a cada hilo una tabla
+privada en lugar de una tabla compartida con \emph{mutex}, la fase paralela quedó
+libre de contención.
+
+\subsection{¿Agregar más hilos garantiza siempre un mejor rendimiento?}
+
+\textbf{No.} Los datos obtenidos lo evidencian en tres niveles:
+
+\paragraph{(a) El rendimiento mejora, pero cada vez menos.}
+Al duplicar de 2 a 4 hilos en el archivo pequeño, el tiempo descendió de
+\num{0.002188}~s a \num{0.001745}~s: \textbf{se duplicaron los recursos para
+obtener apenas un 20\,\% de mejora}. El segundo par de hilos aportó una fracción
+mínima de lo que aportó el primero.
+
+\paragraph{(b) La eficiencia se degrada severamente.}
+Pasar de 2 a 4 hilos redujo la eficiencia del 81.76\,\% al 51.26\,\% en el archivo
+pequeño. En términos prácticos, con 4 hilos \textbf{casi la mitad de la capacidad
+de cómputo asignada se desperdició} en coordinación.
+
+\paragraph{(c) Existen ejecuciones donde 4 hilos resultó más lento que 2.}
+No se trata únicamente de un promedio que se degrada. En el archivo pequeño, la
+corrida~5 registró \num{0.001376}~s con 2 hilos frente a \num{0.001426}~s con 4, y
+la corrida~4 fue prácticamente un empate (\num{0.001510}~s frente a
+\num{0.001490}~s). Agregar hilos en esos casos \textbf{no aportó absolutamente
+nada}.
+
+\paragraph{Conclusión.}
+El número óptimo de hilos depende de la relación entre trabajo útil y
+\emph{overhead}, no de la cantidad de núcleos disponibles. El procesador empleado
+dispone de 10 núcleos, pero con \texttt{archivo.txt} la eficiencia ya se situaba
+por debajo del 52\,\% con 4 hilos; emplear 10 hilos sobre 24~KB de texto sería
+contraproducente, dado que el costo de crear y fusionar diez tablas superaría el
+ahorro obtenido en el conteo.
+
+% ====================================================== 7. CONCLUSIONES
+\section{Conclusiones}
+
+\begin{enumerate}[label=\textbf{\arabic*.}]
+  \item La paralelización del conteo de frecuencia \textbf{sí produce una mejora
+        real y medible}: hasta $2.89\times$ con 4 hilos, manteniendo resultados
+        idénticos a la versión secuencial en todas las configuraciones probadas.
+  \item El \textbf{mayor \emph{speedup}} se obtuvo con 4 hilos, pero la
+        \textbf{mayor \emph{efficiency}} con 2 hilos. Ambas métricas responden a
+        criterios de optimización distintos y no deben confundirse.
+  \item El \emph{speedup} crece de forma \textbf{sublineal} y la \emph{efficiency}
+        \textbf{decrece} al agregar hilos, comportamiento explicado por la ley de
+        Amdahl: la reducción de las tablas es estrictamente secuencial y su costo
+        aumenta con el número de hilos.
+  \item El \textbf{tamaño del problema resultó ser el factor más influyente}. El
+        mismo código con 4 hilos pasó del 51\,\% al 72\,\% de eficiencia
+        únicamente al incrementar el tamaño del archivo. El beneficio del
+        paralelismo depende de que exista trabajo suficiente para amortizar el
+        costo de coordinación.
+  \item La decisión de emplear \textbf{tablas privadas por hilo} en lugar de una
+        tabla compartida con \emph{mutex} fue determinante. Concentra todo el
+        costo de sincronización en un único punto —la reducción— en lugar de
+        distribuirlo a lo largo de toda la ejecución.
+\end{enumerate}
+
+% ====================================================== 8. REPRODUCCION
+\section{Reproducción de los resultados}
+
+\begin{lstlisting}[style=sh,caption={Comandos para reproducir el experimento}]
+make                # compila ambas versiones
+make verificar      # verifica que la salida paralela sea identica
+make benchmark      # 5 corridas por configuracion, speedup y efficiency
+
+# Compilacion manual:
+gcc -O2 -Wall          -o conteo_secuencial conteo_frecuencia_secuencial.c
+gcc -O2 -Wall -pthread -o conteo_paralelo   conteo_frecuencia_paralelo.c
+
+# Ejecucion individual:
+./conteo_secuencial archivo.txt
+./conteo_paralelo   archivo.txt 4
+./conteo_paralelo   archivo.txt 4 --silencioso   # solo el tiempo
+
+# Experimento complementario:
+make benchmark ARCHIVO=archivo_grande.txt REPS=5
+\end{lstlisting}
+
+\noindent
+Los tiempos crudos de cada corrida se encuentran en los archivos
+\texttt{resultados\_archivo.csv} y \texttt{resultados\_grande.csv}.
+
+\vfill
+\begin{center}
+\color{grisln}\rule{0.5\linewidth}{0.6pt}
+\end{center}
+
+\end{document}
