@@ -1,0 +1,5 @@
+CPD_Corto2/
+*.o
+conteo_secuencial
+conteo_paralelo
+resultados_raw/
